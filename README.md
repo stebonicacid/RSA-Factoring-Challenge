@@ -1,2 +1,1 @@
-# RSA-Factoring-Challenge
-The ultimate encryption solution developed by mathematicians and calculated by developers.
+Here you will find code related to Factoring & RSA Challenge
