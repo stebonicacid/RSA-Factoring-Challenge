@@ -1,75 +1,145 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-void list_factors(unsigned long number);
+#include "rsa.h"
+#include "pollard-rho.c"
 
 /**
- * main - main entry point of the program
- * @argc: count of command line arguments passed to the program
- * @argv: vector containing command line arguments passed to the program
+ * init - Initializes the text buffer with null char
  *
- * Return: Always 0 (EXIT_SUCCESS)
+ * @buffer: Array that will hold numbers
+ *
+ * Return: None (void function)
  */
-int main(int argc, char **argv)
+void init(char *buffer)
 {
-	ssize_t num_read;
-	char *value = NULL;
-	size_t line_size = 0;
-	FILE *fp;
-	unsigned long number;
+	int i = 0;
 
-	if (argc == 2)
-	{
-		fp = fopen(argv[1], "r");
-		while ((num_read = getline(&value, &line_size, fp)) != -1)
-		{
-			value[strcspn(value, "\n")] = '\0';
-			number = atol(value);
-			list_factors(number);
-		}
-	}
-	else
-	{
-		fprintf(stderr, "Usage: ./factor <file_name>\n");
-		return (EXIT_FAILURE);
-	}
-	fclose(fp);
-	free(value);
-	return (EXIT_SUCCESS);
+	for (i = 0; i < S_BUFFER; i++)
+		buffer[i] = '\0';
 }
 
 /**
- * list_factors - determines and lists the factors of a number
- * @number: number we wish to evaluate
+ * file2buffer - Reads argv[1] to buffer
  *
- * Return: void
+ * @filename: Pointer to file location
+ *
+ * @buffer: Array that holds the file data
+ *
+ * Return: None (void function)
  */
-void list_factors(unsigned long number)
+void file2buffer(char *filename, char *buffer)
 {
-	unsigned long i, j, divisor;
-	int is_prime = 0;
+	int opens = 0;
 
-	for (i = 2; i <= number; i++)
+	opens = open(filename, O_RDONLY);
+	if (opens < 0)
+		exit(EXIT_FAILURE);
+
+	if (read(opens, buffer, S_BUFFER) < 0)
 	{
-		if (number % i == 0)
-		{
-			is_prime = 1; /* True */
-			for (j = 2; j <= i/2; j++)
-			{
-				if (i % j == 0)
-				{
-					is_prime = 0; /* False */
-					break;
-				}
-			}
-		}
-
-		if (is_prime)
-		{
-			divisor = i;
-			break;
-		}
+		close(opens);
+		exit(EXIT_FAILURE);
 	}
-	printf("%lu=%lu*%lu\n", number, (number / divisor), divisor);
+	close(opens);
+}
+
+/**
+ * _atoi - ASCII -> int conversion
+ *
+ * @src: Input char array
+ *
+ * @dest: Converted data array
+ *
+ * Return: Number of elements copied
+ */
+long long unsigned int _atoi(char *src, long long unsigned int *dest)
+{
+	int i = 0;
+
+	for (i = 0; src[i] && src[i] != '\n'; i++)
+		dest[i] = src[i] - '0';
+
+	return (i);
+}
+
+/**
+ * _putint - General agnostic number printing function
+ *
+ * @dest: Array of newly converted data
+ *
+ * @n: Size of array (N is also the principle number in PRho)
+ *
+ * Return: None (void function)
+ */
+void _putint(long long unsigned int *dest, long long unsigned int n)
+{
+	int i = 0;
+
+	for (i = 0; i < n; i++)
+		putchar(dest[i] + '0');
+}
+
+/**
+ * compute - Converts int array to int
+ *
+ * @src: Array of integers forming number
+ *
+ * @n: Number of digits in number
+ *
+ * Return: Integer repr. of array of ints
+ */
+long long unsigned int compute(long long unsigned int *src, long long unsigned int n)
+{
+        int i;
+	long long unsigned int result = 0;
+
+        for (i = 0; i < n; i++)
+	{
+                result *= 10;
+		result += src[i];
+	}
+
+	//printf("result is: %llu\n", result);
+	return result;
+}
+
+/**
+ * main - Entry point
+ *
+ * @argc: Size of argv array
+ *
+ * @argv: Array of CLI inputs
+ *
+ * Return: always 0
+ */
+int main(int argc, char **argv)
+{
+	char buffer[S_BUFFER]; /* original buffer */
+	char *token; /* tokenized buffer */
+
+	long long unsigned int number[VALUE]; /* integer repr. of number */
+	long long unsigned int cv = 1;
+
+	long long unsigned int n; /* final value to compute */
+	long long unsigned int big = 1;
+
+	if (argc != 2)
+		return (EXIT_FAILURE);
+
+	init(buffer);
+	file2buffer(argv[1], buffer);
+	token = strtok(buffer, " \n"); /* separates each number */
+
+	while (token != NULL)
+	{
+		cv = _atoi(token, number); /* converted values */
+
+		n = compute(number, cv);
+		big = n / PollardRho(n);
+		printf("%llu=%llu*%llu\n", n, big, PollardRho(n));
+
+		//_putint(number, cv);
+		//putchar('\n');
+		token = strtok(NULL, " \n"); /* breaks up each number */
+	}
+
+	return (EXIT_SUCCESS);
 }
